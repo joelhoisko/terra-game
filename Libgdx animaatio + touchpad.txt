@@ -1,0 +1,162 @@
+package com.mygdx.game.android;
+
+
+
+import com.badlogic.gdx.ApplicationListener;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Animation;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Touchpad;
+import com.badlogic.gdx.scenes.scene2d.ui.Touchpad.TouchpadStyle;
+import com.badlogic.gdx.scenes.scene2d.utils.Drawable;
+
+public class Image implements ApplicationListener {
+	private static final int FRAME_COLS = 8;
+	private static final int FRAME_ROWS = 8;
+
+	private SpriteBatch spriteBatch;
+	private Texture coinSheet;
+	private TextureRegion[] coinFrames;
+	private TextureRegion currentFrame;
+	private Animation coinAnimation;
+	private OrthographicCamera camera;
+	private Stage stage;
+	private Touchpad touchpad;
+	private Skin touchpadSkin;
+	private Drawable touchBackground;
+	private Drawable touchKnob;
+	private TouchpadStyle touchpadStyle;
+	private float x;
+	private float y ;
+	float stateTime;
+	private float coinSpeed;
+
+
+	@Override
+	public void create() {
+		// TODO Auto-generated method stub
+		coinSheet = new Texture(Gdx.files.internal("coinSheet1.png")); // ladataan kolikkoanimaation kuvat sisältävä kuva
+		//  pilkotaan ladatusta kuvasta taulukkoon tmp kaikki kolikkokuvat 
+		TextureRegion[][] tmp = TextureRegion.split(coinSheet,coinSheet.getWidth()/FRAME_COLS, coinSheet.getHeight()/FRAME_ROWS);
+		coinFrames = new TextureRegion[FRAME_COLS*FRAME_ROWS]; // taulukko kolikoille
+		int index = 0;
+		for(int i = 0;i<FRAME_ROWS;i++){
+			for(int j = 0; j<FRAME_COLS;j++){
+				coinFrames[index++] = tmp[i][j]; // siirretään taulukkoon texture regionista kolikot
+			}
+		}   
+		coinAnimation = new Animation(0.025f,coinFrames); // uusi animaatio. parametreina aika kullekin kuvalle sekä taulukko kuvia.
+		spriteBatch = new SpriteBatch(); // sprite batch piirtoa varten
+		stateTime = 0f; // tila-aika
+		touchpadSkin = new Skin(); // luodaan touchpad skin;
+		// asetetaan joystickin nuppi ja tausta.
+		touchpadSkin.add("TouchBackground", new Texture(Gdx.files.internal("touchBackground.png")));
+		touchpadSkin.add("TouchKnob", new Texture(Gdx.files.internal("touchKnob.png")));
+		// luodaan joystick tyyli
+		touchpadStyle = new TouchpadStyle();
+		// luodaan Drawables touchpad Skinistä
+		touchBackground = touchpadSkin.getDrawable("TouchBackground");
+		touchKnob = touchpadSkin.getDrawable("TouchKnob");
+		// lisätään edellä luodut Touchpad styleen
+		touchpadStyle.background = touchBackground;
+		touchpadStyle.knob = touchKnob;
+		// nyt luodaan luodun tyylin mukainen touchpad eli joystick ja asetetaan sen rajat
+		touchpad = new Touchpad(10,touchpadStyle);
+		touchpad.setBounds(20,20,200,200);
+
+		// luodaan Stage eli näyttämö ja asetetaan siihen touchpad
+		stage = new Stage();
+		stage.addActor(touchpad);
+		Gdx.input.setInputProcessor(stage);
+		coinSpeed = 0.5f;
+		//luoodaan kamera soellukselle
+		float aspectRatio = (float) Gdx.graphics.getWidth() / (float) Gdx.graphics.getHeight();
+		camera = new OrthographicCamera();
+		camera.setToOrtho(false, 10f*aspectRatio, 10f);
+
+
+
+	}
+
+	@Override
+	public void resize(int width, int height) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void render() {
+
+		Gdx.gl.glClearColor(3, 6, 7, 1); // pohjavärin määritys...
+		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);//...ja piirto
+		camera.update(); // käsketään kameran päivittää itsensä
+
+		x = x + touchpad.getKnobPercentX()*coinSpeed;
+		y = y + touchpad.getKnobPercentY()*coinSpeed;
+		spriteBatch.setProjectionMatrix(camera.combined); // asetetaan spritebatchin tiedot kameraan
+		stateTime += Gdx.graphics.getDeltaTime(); // päivitetään tila-aikaa edellisestä render metodin kutsusta
+		currentFrame = coinAnimation.getKeyFrame(stateTime,true);// ladataan taulukosta yksi kolikkokuva tila-ajan perusteella.
+
+		spriteBatch.begin(); // aloitetaan piirtäminen
+		spriteBatch.draw(currentFrame,x,y,2,2); // piirretään kolikko
+		spriteBatch.end();// lopetetaan piirtäminen
+		// piirretään touchpad
+		stage.act(Gdx.graphics.getDeltaTime());
+		stage.draw();
+
+		/**	
+		if(Gdx.input.isTouched()){ // kosketustiedot
+			Vector3 touchPos = new Vector3(); // luodaan xyz vektori kosketuskoordinaateille
+			touchPos.set(Gdx.input.getX(),Gdx.input.getY(),0); // lisätään kosketustiedot x ja y vektoriin
+			camera.unproject(touchPos);// siirretään kameeran fokus kosketuskohtaan
+			x = touchPos.x - 50 ; // lisätään uudet koordinaatit kolikkoon
+			y = touchPos.y - 30;
+		}
+		 */
+		if(y > Gdx.graphics.getHeight()){
+			y = Gdx.graphics.getHeight()-2;
+		}
+		if(y<0){
+			y = 0;
+		}
+		if(x>Gdx.graphics.getWidth()){
+			x = Gdx.graphics.getWidth();
+		}
+		if(x<0){
+			x = 0;
+		}
+
+	}
+
+	@Override
+	public void pause() {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void resume() {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void dispose() {
+		// TODO Auto-generated method stub
+		spriteBatch.dispose();
+		coinSheet.dispose();
+		stage.dispose();
+
+
+	}
+
+}
